@@ -1,0 +1,7 @@
+/build/
+/MeoAssistantArknights/
+/paddle_inference/
+/PaddleOCR/
+/penguin-stats-recognize-v3/
+
+paddle_inference.tgz
