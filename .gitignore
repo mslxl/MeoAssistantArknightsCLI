@@ -1,0 +1,6 @@
+/.stack-work/
+/lib/
+/dist-newstyle/
+
+*.hi
+*.o

@@ -12,5 +12,5 @@
 cd tools
 bash ./init.sh #编译 maa 及第三方库
 cd ..
-stack build
+cabal build
 ```
