@@ -1,18 +1,19 @@
 cabal-version:      2.4
 name:               MeoAssistantArknightsCLI
 version:            0.1.0.0
+author:             Mslxl
 
 -- A short (one-line) description of the package.
 -- synopsis:
 
 -- A longer description of the package.
--- description:
+description: MeoAssistantArknights CLI with Haskell
 
 -- A URL where users can report bugs.
--- bug-reports:
+bug-reports: https://github.com/mslxl/MeoAssistantArknightsCLI/issues
 
 -- The license under which the package is released.
--- license:
+license-file:       LICENSE
 author:             mslxl
 maintainer:         i@mslxl.com
 
@@ -27,7 +28,7 @@ executable MeoAssistantArknightsCLI
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    -- other-modules:
+    other-modules:    JsonParser
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
