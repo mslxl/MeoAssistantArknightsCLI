@@ -1,9 +1,9 @@
-module JsonParser where
+{-# LANGUAGE LambdaCase #-}
+
+module JsonParser (parseJson, JsonValue) where
 
 import Control.Applicative
-import Control.Monad (join)
 import Data.Char
-import Text.ParserCombinators.ReadP (satisfy)
 
 data JsonValue
   = JsonNull
@@ -13,7 +13,7 @@ data JsonValue
   | JsonFloat Double
   | JsonArray [JsonValue]
   | JsonObject [(String, JsonValue)]
-  deriving (Show, Eq)
+  deriving (Eq)
 
 newtype Parser a = Parser
   { runParser :: String -> Maybe (String, a)
@@ -35,10 +35,35 @@ instance Alternative Parser where
   empty = Parser $ const Nothing
   (Parser f1) <|> (Parser f2) = Parser $ \input -> f1 input <|> f2 input
 
+instance Show JsonValue where
+  show JsonNull = "null"
+  show (JsonInteger int) = show int
+  show (JsonFloat float) = show float
+  show (JsonString str) = "\"" ++ escapeStr str ++ "\""
+    where
+      escapeDict = [('\n', "\\n"), ('/', "\\/"), ('\b', "\\b"), ('\f', "\\f"), ('\t', "\\t"), ('\r', "\\r")] -- note: not support \uxxx
+      escapeStr (x1 : x2 : xxs) = case lookup x1 escapeDict of
+        Nothing -> x1 : escapeStr (x2 : xxs)
+        Just ch -> ch ++ escapeStr xxs
+      escapeStr x = x
+  show (JsonBool v) = map toLower $ show v
+  show (JsonArray v) = "[" ++ elements v ++ "]"
+    where
+      elements [] = ""
+      elements a = foldl1 ((++) . flip (++) ",") $ map show a
+  show (JsonObject v) = "{" ++ elements v ++ "}"
+    where
+      showPair (a, b) = show a ++ ":" ++ show b
+      elements [] = ""
+      elements a = foldl1 ((++) . flip (++) ",") $ map showPair a
+
+parseJson :: String -> Maybe JsonValue
+parseJson input = snd <$> runParser jsonValue input
+
 jsonValue :: Parser JsonValue
 jsonValue = foldl1 (<|>) parsers
   where
-    parsers = [jsonNull, jsonBool, jsonString, jsonNum, jsonArray]
+    parsers = [jsonNull, jsonBool, jsonString, jsonNum, jsonArray, jsonObject]
 
 jsonNull :: Parser JsonValue
 jsonNull = JsonNull <$ stringP "null"
@@ -82,16 +107,20 @@ jsonString = JsonString <$> stringLiteral
 stringLiteral :: Parser String
 stringLiteral = charP '\"' *> (concat <$> stringLiteral') <* charP '\"'
   where
-    stringLiteral' = many (escapeN <|> escapeR <|> escapeQuotation <|> escapeAs <|> normalStr) -- NOTE: It's not completed yet
-    escapeAs = "\\" <$ stringP "\\\\"
+    stringLiteral' = many (escapeN <|> escapeR <|> escapeQuotation <|> escapeSp <|> normalStr) -- NOTE: Unsupport \uxxx
+    escapeSp = "\\" <$ stringP "\\\\"
+    escapeBkSp = "/" <$ stringP "\\/"
+    escapeBk = "\b" <$ stringP "\\b"
+    escapeTb = "\t" <$ stringP "\\t"
     escapeN = "\n" <$ stringP "\\n"
     escapeR = "\r" <$ stringP "\\r"
     escapeQuotation = "\"" <$ stringP "\\\""
-    normalStr = Parser $ \input -> case input of
-      ('\"' : ys) -> Nothing -- fail the string and try others
-      ('\\' : ys) -> Nothing
-      (y : ys) -> Just (ys, [y])
-      [] -> Nothing
+    normalStr = Parser $
+      \case
+        ('\"' : ys) -> Nothing -- fail the string and try others
+        ('\\' : ys) -> Nothing
+        (y : ys) -> Just (ys, [y])
+        [] -> Nothing
 
 charP :: Char -> Parser Char
 charP c = Parser f
