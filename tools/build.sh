@@ -91,3 +91,8 @@ if [[ ! -f "$result_dir/$maa_build_filename" ]]; then
     cp "$maa_build_dir/$maa_build_filename" "$result_dir/$maa_build_filename"
     cp -r "$maa_build_dir/resource" "$result_dir/resource"
 fi
+
+if [[ -d "$pkg_root/../lib" ]]; then
+  rm -rf "$pkg_root/../lib"
+fi
+cp -r "$pkg_root/build" "$pkg_root/../lib"

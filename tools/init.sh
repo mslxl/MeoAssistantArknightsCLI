@@ -7,4 +7,3 @@ bash ./clone.sh
 echo "Building..."
 bash ./build.sh
 
-ln -s "$(realpath result)" "$(realpath ../lib)"
