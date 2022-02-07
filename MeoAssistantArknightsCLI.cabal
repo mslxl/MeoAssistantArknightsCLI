@@ -14,7 +14,6 @@ bug-reports: https://github.com/mslxl/MeoAssistantArknightsCLI/issues
 
 -- The license under which the package is released.
 license-file:       LICENSE
-author:             mslxl
 maintainer:         i@mslxl.com
 
 -- A copyright notice.
@@ -24,15 +23,14 @@ extra-source-files:
     CHANGELOG.md
     README.md
 
-executable MeoAssistantArknightsCLI
+executable maa
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
     other-modules:    JsonParser, Maa
-    ghc-options:  -optl-Wl,-rpath,'$ORIGIN'
+    ld-options:       -Wl,-rpath,$ORIGIN
     extra-libraries:  MeoAssistant
     extra-lib-dirs:   lib
-    extra-include-dirs: include
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
