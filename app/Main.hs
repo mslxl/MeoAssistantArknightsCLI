@@ -1,6 +1,7 @@
 module Main where
 
-import JsonParser
+import qualified JsonParser as Json
+import qualified Maa as M
 
 main :: IO ()
-main = putStrLn "Hello, Haskell!"
+main = ("MeoAssistant " ++) <$> M.maaVersion >>= putStrLn

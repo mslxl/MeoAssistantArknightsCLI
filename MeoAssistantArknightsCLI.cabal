@@ -28,7 +28,11 @@ executable MeoAssistantArknightsCLI
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    other-modules:    JsonParser
+    other-modules:    JsonParser, Maa
+    ghc-options:  -optl-Wl,-rpath,'$ORIGIN'
+    extra-libraries:  MeoAssistant
+    extra-lib-dirs:   lib
+    extra-include-dirs: include
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

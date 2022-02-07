@@ -5,7 +5,7 @@ set -e
 function clone(){
     git clone "$1" "$2"
     cd "$2"
-    git checkout $(git tag | tail -n 1)
+    # git checkout $(git tag | tail -n 1)
 }
 
 clone "https://github.com/MistEO/MeoAssistantArknights.git" "MeoAssistantArknights"

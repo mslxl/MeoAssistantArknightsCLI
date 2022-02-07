@@ -95,4 +95,13 @@ fi
 if [[ -d "$pkg_root/../lib" ]]; then
   rm -rf "$pkg_root/../lib"
 fi
+
+cat > "$pkg_root/build/maa" <<\EOF
+#!/bin/bash
+LD_LIBRARY_PATH=. ./MeoAssistantArknightsCLI "$@"
+EOF
+
+chmod a+x "$pkg_root/build/maa"
+
 cp -r "$pkg_root/build" "$pkg_root/../lib"
+
