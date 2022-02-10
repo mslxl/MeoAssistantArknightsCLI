@@ -1,0 +1,12 @@
+[submodule "tools/PaddleOCR"]
+	path = tools/PaddleOCR
+	url = https://github.com/MistEO/PaddleOCR.git
+[submodule "tools/penguin-stats-recognize-v3"]
+	path = tools/penguin-stats-recognize-v3
+	url = https://github.com/MistEO/penguin-stats-recognize-v3
+[submodule "tools/MeoAssistantArknights"]
+	path = tools/MeoAssistantArknights
+	url = https://github.com/MistEO/MeoAssistantArknights
+[submodule "tools/opencv"]
+	path = tools/opencv
+	url = https://github.com/opencv/opencv.git

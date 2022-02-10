@@ -1,8 +1,13 @@
 /.stack-work/
 /lib/
 /dist-newstyle/
+/.ammonite/
+/.metals/
+/.vscode/
 
 *.hi
 *.o
+
 /maa
 /asst.log
+/.scalafmt.conf

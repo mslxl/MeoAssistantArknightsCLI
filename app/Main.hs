@@ -1,7 +1,13 @@
 module Main where
 
+import Control.Monad (forever)
 import qualified JsonParser as Json
 import qualified Maa as M
+import System.Exit
+
+exitIfFalse :: Bool -> IO ()
+exitIfFalse True = return ()
+exitIfFalse False = exitFailure
 
 main :: IO ()
 main = do
@@ -11,6 +17,5 @@ main = do
   M.maaVersion >>= putStrLn . ("MeoAssistant " ++)
   asst <- M.maaAsstCreate
   let tk = M.maaConnect "192.168.56.101:5555" <> M.maaWakeup <> M.maaStart
-  M.runTask tk asst >>= print . snd
-  getLine
-  return ()
+  M.runTask tk asst >>= exitIfFalse . snd
+  forever getLine

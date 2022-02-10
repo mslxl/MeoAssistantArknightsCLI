@@ -5,6 +5,8 @@ module Maa
   ( runTask,
     MaaTask,
     MaaAsstPtr,
+    ShiftOrder,
+    DroneUse,
     maaAsstCreate,
     maaFight,
     maaAward,
@@ -20,9 +22,11 @@ module Maa
 where
 
 import Control.Applicative
+import Control.Monad
 import Foreign
 import Foreign.C.String
 import Foreign.C.Types
+import GHC.Exts (maxTupleSize)
 import System.Directory
 
 type MaaAsstPtr = IntPtr
@@ -67,17 +71,34 @@ maaVisit = MaaTask $ \ptr -> (ptr,) . toBool <$> asstAppendVisit ptr
 maaMall :: Bool -> MaaTask
 maaMall withShopping = MaaTask $ \ptr -> (ptr,) . toBool <$> asstAppendMall ptr withShopping
 
+data ShiftOrder = Mfg | Trade | Control | Power | Reception | Office | Dorm
+  deriving (Show, Eq)
+
+data DroneUse = NotUse | Money | SyntheticJade | CombatRecord | PureGold | OriginStone | Chip
+  deriving (Show, Eq)
+
 -- 基建
-maaInfrast :: MaaAsstPtr -> IO MaaAsstPtr
-maaInfrast = undefined
+-- 工作模式（仅支持1) -> 换班顺序
+maaInfrast :: Int -> [ShiftOrder] -> DroneUse -> Double -> MaaTask
+maaInfrast workMode order droneUse threshold = MaaTask $ \ptr -> do
+  -- 说实话丑死了
+  when (workMode /= 1) $ error "Work Mode only support 1 currently"
+  shiftOrder <- mapM (newCString . show) order >>= newArray
+  droneUseC <- newCString $ (\str -> if str == "NotUse" then "_NotUse" else str) $ show droneUse
+  result <- asstAppendInfrast ptr workMode shiftOrder (length order) droneUseC threshold
+  return (ptr, toBool result)
 
 -- 公招
 -- 自动公招次数 -> 要点击的 tag -> 要确认开始的 tag -> 是否刷新 3-level tag -> 是否使用加急
-maaRecruit :: MaaAsstPtr -> Int -> [Int] -> [Int] -> Bool -> Bool -> IO MaaAsstPtr
-maaRecruit = undefined
+maaRecruit :: Int -> [Int] -> [Int] -> Bool -> Bool -> MaaTask
+maaRecruit maxTimes selectLevel confirmLevel needRefresh useExpedited = MaaTask $ \ptr -> do
+  levelC <- newArray selectLevel
+  confirmC <- newArray confirmLevel
+  result <- asstAppendRecruit ptr maxTimes levelC (length selectLevel) confirmC (length confirmLevel) needRefresh useExpedited
+  return (ptr, toBool result)
 
-maaPenguin :: MaaAsstPtr -> Int -> IO MaaAsstPtr
-maaPenguin = undefined
+maaPenguin :: String -> MaaTask
+maaPenguin pid = MaaTask $ \ptr -> (ptr,) . toBool <$> (newCString pid >>= asstSetPenguinId ptr)
 
 maaStart :: MaaTask
 maaStart = MaaTask $ \ptr -> asstStart ptr >>= (\cbool -> pure (ptr, toBool cbool))
@@ -114,3 +135,9 @@ foreign import ccall "AsstCaller.h AsstAppendFight" asstAppendFight :: MaaAsstPt
 foreign import ccall "AsstCaller.h AsstAppendMall" asstAppendMall :: MaaAsstPtr -> Bool -> IO CBool
 
 foreign import ccall "AsstCaller.h AsstAppendVisit" asstAppendVisit :: MaaAsstPtr -> IO CBool
+
+foreign import ccall "AsstCaller.h AsstSetPenguinId" asstSetPenguinId :: MaaAsstPtr -> CString -> IO CBool
+
+foreign import ccall "AsstCaller.h AsstAppendInfrast" asstAppendInfrast :: MaaAsstPtr -> Int -> Ptr CString -> Int -> CString -> Double -> IO CBool
+
+foreign import ccall "AsstCaller.h AsstAppendRecruit" asstAppendRecruit :: MaaAsstPtr -> Int -> Ptr Int -> Int -> Ptr Int -> Int -> Bool -> Bool -> IO CBool
