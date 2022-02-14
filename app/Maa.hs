@@ -7,26 +7,43 @@ module Maa
     MaaAsstPtr,
     ShiftOrder,
     DroneUse,
-    maaAsstCreate,
-    maaFight,
-    maaAward,
-    maaVisit,
-    maaMall,
-    maaInfrast,
-    maaRecruit,
-    maaVersion,
-    maaStart,
-    maaWakeup,
-    maaConnect,
+    create,
+    fight,
+    award,
+    visit,
+    mall,
+    infrast,
+    recruit,
+    version,
+    start,
+    wakeup,
+    connect,
+    RecruitConfig,
+    maaRecruitMaxTimes,
+    maaRecruitSelectLevel,
+    maaRecruitConfirmLevel,
+    maaRecruitNeedRefresh,
+    maaRecruitUseExpedited,
+    FightConfig,
+    maaFightStage,
+    maaFightMaxMecidine,
+    maaFightMaxStone,
+    maaFightMaxTimes,
+    InfrastConfig,
+    maaInfrastWorkMode,
+    maaInfrastShiftOrder,
+    maaInfrastDroneUse,
+    maaInfrastMoodThreshold,
   )
 where
 
 import Control.Applicative
 import Control.Monad
+import Data.Default
 import Foreign
 import Foreign.C.String
 import Foreign.C.Types
-import GHC.Exts (maxTupleSize)
+import GHC.Exts (FunPtr (FunPtr))
 import System.Directory
 
 type MaaAsstPtr = IntPtr
@@ -49,27 +66,41 @@ instance Semigroup MaaTask where
 instance Monoid MaaTask where
   mempty = MaaTask $ \ptr -> pure (ptr, True)
 
-maaWakeup :: MaaTask
-maaWakeup = MaaTask $ \ptr -> asstAppendStartUp ptr >>= (\cbool -> pure (ptr, toBool cbool))
+wakeup :: MaaTask
+wakeup = MaaTask $ \ptr -> asstAppendStartUp ptr >>= (\cbool -> pure (ptr, toBool cbool))
 
--- 刷理智
--- 关卡名 -> 吃多少理智 -> 吃多少原石 -> 刷多少次
-maaFight :: String -> Int -> Int -> Int -> MaaTask
-maaFight stageName san or times = MaaTask $ \ptr -> do
-  st <- newCString stageName
-  (ptr,) . toBool <$> asstAppendFight ptr st san or times
+data FightConfig = FightConfig
+  { maaFightStage :: String,
+    maaFightMaxMecidine :: Int32,
+    maaFightMaxStone :: Int32,
+    maaFightMaxTimes :: Int32
+  }
+
+instance Default FightConfig where
+  def = FightConfig "" 0 0 maxBound
+
+fight :: FightConfig -> MaaTask
+fight cfg = MaaTask $ \ptr ->
+  let stage = newCString $ maaFightStage cfg
+      maxMecidine = CInt $maaFightMaxMecidine cfg
+      maxStone = CInt $ maaFightMaxStone cfg
+      maxTimes = CInt $ maaFightMaxTimes cfg
+   in do
+        stage <- stage
+        result <- asstAppendFight ptr stage maxMecidine maxStone maxTimes
+        return (ptr, toBool result)
 
 -- 每日任务
-maaAward :: MaaTask
-maaAward = MaaTask $ \ptr -> (ptr,) . toBool <$> asstAppendAward ptr
+award :: MaaTask
+award = MaaTask $ \ptr -> (ptr,) . toBool <$> asstAppendAward ptr
 
 -- 拜访好友
-maaVisit :: MaaTask
-maaVisit = MaaTask $ \ptr -> (ptr,) . toBool <$> asstAppendVisit ptr
+visit :: MaaTask
+visit = MaaTask $ \ptr -> (ptr,) . toBool <$> asstAppendVisit ptr
 
 -- 信用商店
-maaMall :: Bool -> MaaTask
-maaMall withShopping = MaaTask $ \ptr -> (ptr,) . toBool <$> asstAppendMall ptr withShopping
+mall :: Bool -> MaaTask
+mall withShopping = MaaTask $ \ptr -> (ptr,) . toBool <$> asstAppendMall ptr withShopping
 
 data ShiftOrder = Mfg | Trade | Control | Power | Reception | Office | Dorm
   deriving (Show, Eq)
@@ -79,41 +110,79 @@ data DroneUse = NotUse | Money | SyntheticJade | CombatRecord | PureGold | Origi
 
 -- 基建
 -- 工作模式（仅支持1) -> 换班顺序
-maaInfrast :: Int -> [ShiftOrder] -> DroneUse -> Double -> MaaTask
-maaInfrast workMode order droneUse threshold = MaaTask $ \ptr -> do
-  -- 说实话丑死了
-  when (workMode /= 1) $ error "Work Mode only support 1 currently"
-  shiftOrder <- mapM (newCString . show) order >>= newArray
-  droneUseC <- newCString $ (\str -> if str == "NotUse" then "_NotUse" else str) $ show droneUse
-  result <- asstAppendInfrast ptr workMode shiftOrder (length order) droneUseC threshold
-  return (ptr, toBool result)
+data InfrastConfig = InfrastConfig
+  { maaInfrastWorkMode :: Int32,
+    maaInfrastShiftOrder :: [ShiftOrder],
+    maaInfrastDroneUse :: DroneUse,
+    maaInfrastMoodThreshold :: Double
+  }
+
+instance Default InfrastConfig where
+  def = InfrastConfig 1 [Mfg, Trade, Control, Power, Reception, Office, Dorm] Money 0.3
+
+infrast :: InfrastConfig -> MaaTask
+infrast cfg = MaaTask $ \ptr ->
+  let workMode = CInt $ maaInfrastWorkMode cfg
+      shiftOrder = mapM (newCString . show) (maaInfrastShiftOrder cfg) >>= newArray
+      shiftOrderLen = CInt . fromIntegral $ length $ maaInfrastShiftOrder cfg
+      droneUse = newCString $ (\str -> if str == "NotUse" then "_NotUse" else str) $ show $ maaInfrastDroneUse cfg
+      threshold = maaInfrastMoodThreshold cfg
+   in do
+        when (workMode /= 1) $ error "Work Mode only support 1 currently"
+        shiftOrder <- shiftOrder
+        droneUse <- droneUse
+        result <- asstAppendInfrast ptr workMode shiftOrder shiftOrderLen droneUse threshold
+        return (ptr, toBool result)
+
+data RecruitConfig = RecruitConfig
+  { maaRecruitMaxTimes :: Int32,
+    maaRecruitSelectLevel :: [Int32],
+    maaRecruitConfirmLevel :: [Int32],
+    maaRecruitNeedRefresh :: Bool,
+    maaRecruitUseExpedited :: Bool
+  }
+
+instance Default RecruitConfig where
+  def = RecruitConfig 3 [4] [1, 2, 3, 4] True False
 
 -- 公招
 -- 自动公招次数 -> 要点击的 tag -> 要确认开始的 tag -> 是否刷新 3-level tag -> 是否使用加急
-maaRecruit :: Int -> [Int] -> [Int] -> Bool -> Bool -> MaaTask
-maaRecruit maxTimes selectLevel confirmLevel needRefresh useExpedited = MaaTask $ \ptr -> do
-  levelC <- newArray selectLevel
-  confirmC <- newArray confirmLevel
-  result <- asstAppendRecruit ptr maxTimes levelC (length selectLevel) confirmC (length confirmLevel) needRefresh useExpedited
-  return (ptr, toBool result)
+recruit :: RecruitConfig -> MaaTask
+recruit cfg = MaaTask $ \ptr ->
+  let selectLevel = newArray $ map CInt $ maaRecruitSelectLevel cfg
+      confirmLevel = newArray $ map CInt $ maaRecruitConfirmLevel cfg
+      selectLevenLen = CInt . fromIntegral $length $ maaRecruitSelectLevel cfg
+      confirmLevelLen = CInt . fromIntegral $ length $ maaRecruitConfirmLevel cfg
+      needRefresh = maaRecruitNeedRefresh cfg
+      useExpedited = maaRecruitUseExpedited cfg
+      maxTimes = CInt $ maaRecruitMaxTimes cfg
+   in do
+        selectLevel <- selectLevel
+        confirmLevel <- confirmLevel
+        result <- asstAppendRecruit ptr maxTimes selectLevel selectLevenLen confirmLevel confirmLevelLen needRefresh useExpedited
+        return (ptr, toBool result)
 
-maaPenguin :: String -> MaaTask
-maaPenguin pid = MaaTask $ \ptr -> (ptr,) . toBool <$> (newCString pid >>= asstSetPenguinId ptr)
+penguin :: String -> MaaTask
+penguin pid = MaaTask $ \ptr -> (ptr,) . toBool <$> (newCString pid >>= asstSetPenguinId ptr)
 
-maaStart :: MaaTask
-maaStart = MaaTask $ \ptr -> asstStart ptr >>= (\cbool -> pure (ptr, toBool cbool))
+start :: MaaTask
+start = MaaTask $ \ptr -> asstStart ptr >>= (\cbool -> pure (ptr, toBool cbool))
 
-maaConnect :: String -> MaaTask
-maaConnect address = MaaTask $ \ptr -> do
+connect :: String -> MaaTask
+connect address = MaaTask $ \ptr -> do
   let a = toBool <$> (newCString address >>= asstCatchCustom ptr)
   (ptr,) <$> a
 
 -- MAA 版本
-maaVersion :: IO String
-maaVersion = asstGetVersion >>= peekCString
+version :: IO String
+version = asstGetVersion >>= peekCString
 
-maaAsstCreate :: IO MaaAsstPtr
-maaAsstCreate = maaAsstDir >>= newCString >>= asstCreate
+create :: IO MaaAsstPtr
+create =
+  let asstDir = maaAsstDir >>= newCString
+   in do
+        asstDir <- asstDir
+        asstCreate asstDir
 
 maaAsstDir :: IO FilePath
 maaAsstDir = (++ "/lib") <$> getCurrentDirectory
@@ -130,7 +199,7 @@ foreign import ccall "AsstCaller.h AsstAppendAward" asstAppendAward :: MaaAsstPt
 
 foreign import ccall "AsstCaller.h AsstCatchCustom" asstCatchCustom :: MaaAsstPtr -> CString -> IO CBool
 
-foreign import ccall "AsstCaller.h AsstAppendFight" asstAppendFight :: MaaAsstPtr -> CString -> Int -> Int -> Int -> IO CBool
+foreign import ccall "AsstCaller.h AsstAppendFight" asstAppendFight :: MaaAsstPtr -> CString -> CInt -> CInt -> CInt -> IO CBool
 
 foreign import ccall "AsstCaller.h AsstAppendMall" asstAppendMall :: MaaAsstPtr -> Bool -> IO CBool
 
@@ -138,6 +207,6 @@ foreign import ccall "AsstCaller.h AsstAppendVisit" asstAppendVisit :: MaaAsstPt
 
 foreign import ccall "AsstCaller.h AsstSetPenguinId" asstSetPenguinId :: MaaAsstPtr -> CString -> IO CBool
 
-foreign import ccall "AsstCaller.h AsstAppendInfrast" asstAppendInfrast :: MaaAsstPtr -> Int -> Ptr CString -> Int -> CString -> Double -> IO CBool
+foreign import ccall "AsstCaller.h AsstAppendInfrast" asstAppendInfrast :: MaaAsstPtr -> CInt -> Ptr CString -> CInt -> CString -> Double -> IO CBool
 
-foreign import ccall "AsstCaller.h AsstAppendRecruit" asstAppendRecruit :: MaaAsstPtr -> Int -> Ptr Int -> Int -> Ptr Int -> Int -> Bool -> Bool -> IO CBool
+foreign import ccall "AsstCaller.h AsstAppendRecruit" asstAppendRecruit :: MaaAsstPtr -> CInt -> Ptr CInt -> CInt -> Ptr CInt -> CInt -> Bool -> Bool -> IO CBool

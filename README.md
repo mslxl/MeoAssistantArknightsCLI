@@ -2,9 +2,21 @@
 
 [MeoAssistantArknights](https://github.com/MistEO/MeoAssistantArknights) 的命令行用户界面。
 
-练习下 Haskell ~~虽然用蛤丝科可能不太合适~~
+练习下 Haskell ~~用蛤丝科 FFI 实在太怪了~~
 
-~~该项目出于练习，不一定持续开发~~
+
+当前动作 (抽出时间来一定会写个命令行的)：
+``` haskell
+M.connect "192.168.56.101:5555"
+    <> M.wakeup
+    <> M.fight def
+    <> M.recruit def {maaRecruitMaxTimes = 4}
+    <> M.infrast def
+    <> M.visit
+    <> M.mall True
+    <> M.award
+    <> M.start
+```
 
 ### 构建方式：
 
